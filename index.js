@@ -98,14 +98,13 @@ exports.endpoint = async (request, response) => {
     db.on('error', (err) => console.log(`connection error: ${err}`))
     db.once('open', async () => {
       console.log(`DB IS OPEN!`)
+      let recordExists = false
       if (await checkForExistingRecord(date)) {
         // don't save document if there is already one with the same date
-        const msg = `Not adding document to database (already one with ${date.toDate()} in the db).`
-        console.log(msg)
+        console.log(`Not adding document to database (already one with ${date.toDate()} in the db).`)
         db.close()
         console.log(`DB IS NOW CLOSED`)
-        response.end(`It seems the export of ${date.format('MMMM Do')} has already been reported. <https://jfix.github.io/export-stats/|Check here> in case of doubt.`)
-        return
+        recordExists = true
       }
 
       // get the data from the POST body while there is data
@@ -138,6 +137,10 @@ exports.endpoint = async (request, response) => {
 
         const resMsg = `${responseMsg} <@${userId}>, ${responseDate}'s export has been successfully recorded. <https://jfix.github.io/export-stats/|Find out more>.`
 
+        if (recordExists) {
+          response.end(`${responseMsg} <@${userId}>. However, it seems ${responseDate}'s export has already been reported (this may happen when Runkit doesn't respond in time to Slack, but has successfully recorded the export. <https://jfix.github.io/export-stats/|Check here> in case of doubt.`)
+          return
+        }
         const res = await saveNewRecord(exportSuccessful)
         if (res) {
           console.log(`Successfully saved document in database.`)
